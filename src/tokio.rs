@@ -311,6 +311,45 @@ impl LeakyBucket {
     pub fn try_acquire(&self, amount: u32) -> Result<(), TryAcquireError> {
         self.inner.try_acquire(amount)
     }
+
+    /// Refill the bucket.
+    ///
+    /// [`refill`]: LeakyBucket::refill
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use leaky_bucket_lite::LeakyBucket;
+    /// use std::time::Duration;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let rate_limiter = LeakyBucket::builder()
+    ///         .max(5)
+    ///         .tokens(0)
+    ///         .refill_interval(Duration::from_secs(5))
+    ///         .refill_amount(1)
+    ///         .build();
+    ///
+    ///     println!("Waiting for permit...");
+    ///     // should take about 5 seconds to acquire.
+    ///     rate_limiter.acquire_one().await;
+    ///     println!("I made it!");
+    ///
+    ///     println!("Refilling...");
+    ///     rate_limiter.refill();
+    ///     println!("Refill complete!");
+    ///
+    ///     println!("Waiting for permit again...");
+    ///     // should be instant this time.
+    ///     rate_limiter.acquire_one().await;
+    ///     println!("I made it again!");
+    /// }
+    /// ```
+    #[inline]
+    pub async fn refill(&self) {
+        self.inner.locked.lock().await.tokens = self.max()
+    }
 }
 
 /// Builder for a leaky bucket.
